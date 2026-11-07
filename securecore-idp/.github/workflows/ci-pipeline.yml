@@ -1,0 +1,49 @@
+﻿# Operational Runbook: High Error Rate / 502 Bad Gateway
+## Severity: SEV-2
+**Trigger:** ALB 5XX error rate exceeds 5% over a 5-minute window.
+## Triage & Troubleshooting Steps
+1. **Check CloudWatch Alarms:** Review the dashboard to identify which service tier is failing.
+2. **Inspect ECS Task Health:** Run AWS CLI to check if tasks are crash-looping:
+   `ash
+   aws ecs describe-services --cluster <cluster-name> --services <service-name>
+Get-ChildItem -Recurse -Name
+Get-ChildItem -Path .github\workflows
+@"
+name: SecureCore-IDP Pipeline
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+jobs:
+  devsecops-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install CDK Dependencies
+        run: |
+          cd infra
+          npm ci
+      - name: Synthesize CloudFormation Template
+        run: |
+          cd infra
+          npx cdk synth
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Security Linters
+        run: |
+          python -m pip install --upgrade pip
+          pip install cfn-lint checkov
+      - name: Run CloudFormation Linter
+        run: |
+          cfn-lint infra/cdk.out/*.template.json
+      - name: Run Checkov Security Scan
+        run: |
+          checkov -d infra/
